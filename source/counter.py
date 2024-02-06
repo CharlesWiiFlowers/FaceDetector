@@ -24,5 +24,5 @@ def main(page: ft.Page):
             alignment=ft.MainAxisAlignment.CENTER,
         )
     )
-
-ft.app(target=main, view=ft.AppView.WEB_BROWSER)
+    
+ft.app(target=main, view=ft.AppView.FLET_APP)
