@@ -1,4 +1,6 @@
 import os
+import cv2
+import time
 import flet as ft
 import mediapipe as mp
 from mediapipe.tasks.python import text
@@ -31,34 +33,110 @@ class Ai():
     async def textToImage(prompt: str):
         print("Hello World")
 
-    async def objectDetector():
-        modelPath = "C:\Users\lenoc\Documents\GitHub\FaceDetector\models\efficientdet_lite0.tflite"
+    async def objectDetector(image):
+        modelPath = "C:\\Users\\lenoc\\Documents\\GitHub\\FaceDetector\\models\\efficientdet_lite0.tflite"
 
         # Honestly Idk what I'm doing
         baseOptions = mp.tasks.BaseOptions
-        detectionResult = mp.tasks.components.containers.detections.DetectionResult
+        # detectionResult = mp.tasks.components.containers.detections.DetectionResult
         objectDetector = mp.tasks.vision.ObjectDetector
         objectDetectorOptions = mp.tasks.vision.ObjectDetectorOptions
         visionRunningMode = mp.tasks.vision.RunningMode
 
-        def print_result(result: detectionResult, output_image: mp.Image, timestamp: int):
-            print('Detection result {}'.format(result))
-
         options = objectDetectorOptions(
-            base_options = baseOptions(model_asset_path = modelPath),
-            running_mode = visionRunningMode.LIVE_STREAM,
-            max_results = 5,
-            result_callback = print_result
-        )
+            base_options=baseOptions(model_asset_path=modelPath),
+            max_results=5,
+            running_mode=visionRunningMode.IMAGE
+            )
 
         with objectDetector.create_from_options(options) as detector:
-            return detector
+            detection_result = detector.detect(image)
+
+        #I need to get EVERY
+        dictionary: dict = {}
+        x = 0
+
+        for detection in detection_result.detections:
+            boundingBox = detection.bounding_box
+
+            x1 = boundingBox.origin_x
+            y1 = boundingBox.origin_y
+            x2 = boundingBox.width
+            y2 = boundingBox.height
+
+            categories = detection.categories
+            category = categories[0]
+            score = category.score
+            categoryName = category.category_name
+
+            dictionary[x] = {"catName": categoryName, "score": score, "X1": x1, "Y1": y1, "X2": x2, "Y2": y2}
+            x+=1
+
+        return dictionary
 
 class UI():
     async def main(page: ft.Page):
+        await page.update_async() #Constant updated
+
         page.title = "Demo IA"
         field = ft.Text(width=100)
         fieldText = ft.TextField(width=100)
+
+        myImage = ft.Image(
+            src=False,
+            width=320,
+            height=320,
+            fit=ft.ImageFit.COVER
+        )
+
+        async def takeCapture(e):
+            cap = cv2.VideoCapture(0) #????
+            cv2.namedWindow("Webcam", cv2.WINDOW_NORMAL) #???? x2
+            cv2.resizeWindow("Webcam", 320, 320)
+
+            try:
+                while True:
+                    ret, frame = cap.read()
+
+                    cv2.imshow("Webcam", frame)
+                    #myImage.src = ""
+                    await page.update_async()
+
+                    key = cv2.waitKey(1) # Wait a Key with 1 (???) of delay
+
+                    if key == ord("p"):
+                        break
+                    elif key == ord("q"):
+                        data = await Ai.objectDetector(
+                            mp.Image(image_format=mp.ImageFormat.SRGB, data=frame)
+                        )
+
+                        for x in data:
+                            cv2.rectangle(
+                                frame,
+                                (int(data[x]['X1']), int(data[x]['Y1'])),
+                                (int(data[x]['X1']) + int(data[x]['X2']), int(data[x]['Y1']) + int(data[x]['Y2'])),
+                                (246,209,81),
+                                2)
+                            
+                            cv2.putText(frame, data[x]['catName'] + " " + str(round(data[x]['score'] * 100, 0)) + "%", 
+                                        (data[x]['X1'], data[x]['Y1'] - 10), 
+                                        cv2.QT_FONT_NORMAL, 1, 
+                                        (255,209,81), 2)
+
+                            print(data[x])
+                            
+                        cv2.imshow("Webcam", frame)
+                        cv2.waitKey(1000)
+                        await page.update_async()
+
+                cap.release() #???? x4
+                cv2.destroyAllWindows()
+                await page.update_async()
+
+            except Exception as e:
+                print("SOMETHING FAILED!!!")
+                print(e)
 
         async def enterClick(e):
             x: str = await Ai.textToEmotion(fieldText.value)
@@ -66,13 +144,12 @@ class UI():
             field.value = x
             await page.update_async()
 
-        await page.add_async(ft.Row(
+        await page.add_async(ft.Column(
                 [
-                    fieldText,
-                    ft.IconButton(ft.icons.ADD_A_PHOTO, on_click=enterClick),
-                    field,
+                    ft.IconButton(ft.icons.ADD_A_PHOTO, on_click=takeCapture),
+                    myImage
                 ],
-                    vertical_alignment=ft.MainAxisAlignment.CENTER
+                    #vertical_alignment=ft.MainAxisAlignment.CENTER
                 )
             )
     
