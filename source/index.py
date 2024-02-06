@@ -1,6 +1,5 @@
 import os
 import cv2
-import time
 import flet as ft
 import mediapipe as mp
 from mediapipe.tasks.python import text
@@ -79,7 +78,7 @@ class UI():
         await page.update_async() #Constant updated
 
         page.title = "Demo IA"
-        field = ft.Text(width=100)
+        field = ft.Text(width=100, height=100)
         fieldText = ft.TextField(width=100)
 
         myImage = ft.Image(
@@ -140,6 +139,8 @@ class UI():
 
         async def enterClick(e):
             x = await Ai.textToEmotion(fieldText.value)
+
+            print(x)
 
             p = x[0]['catName']
             pScore = round(x[0]['score'] * 100, 0)
