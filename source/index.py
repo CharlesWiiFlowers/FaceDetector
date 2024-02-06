@@ -18,17 +18,17 @@ class Ai():
         with python.text.TextClassifier.create_from_options(options) as classifier:
             clas_result: str = classifier.classify(data)
         
-        try:
-            x = eval(str(clas_result))
-            print()
-            print(x)
-            print("- X")
-        except:
-            print()
-            print(type(clas_result))
-            print("- Class Result Type")
-        
-        return clas_result
+        dictionary: dict = {}
+        y = 0
+
+        for x in clas_result.classifications[0].categories:
+            score = x.score
+            cat_name = x.category_name
+
+            dictionary[y] = {'catName': cat_name, 'score': score}
+            y+=1
+
+        return dictionary
     
     async def textToImage(prompt: str):
         print("Hello World")
@@ -139,18 +139,32 @@ class UI():
                 print(e)
 
         async def enterClick(e):
-            x: str = await Ai.textToEmotion(fieldText.value)
-            print(x)
-            field.value = x
+            x = await Ai.textToEmotion(fieldText.value)
+
+            p = x[0]['catName']
+            pScore = round(x[0]['score'] * 100, 0)
+            n = x[1]['catName']
+            nScore = round(x[1]['score'] * 100, 0)
+
+            field.value = ("Positive: " + str(pScore) + "%\nNegative: " + str(nScore) + "%")
             await page.update_async()
 
-        await page.add_async(ft.Column(
+        await page.add_async(
+            ft.Row(
                 [
+                    ft.Text(value="Object Detector: "),
                     ft.IconButton(ft.icons.ADD_A_PHOTO, on_click=takeCapture),
                     myImage
-                ],
-                    #vertical_alignment=ft.MainAxisAlignment.CENTER
-                )
+                ]
+                ),
+            ft.Row(
+                [
+                    ft.Text(value="Text to Emotion: "),
+                    fieldText,
+                    ft.IconButton(icon=ft.icons.ADD_BOX, on_click=enterClick),
+                    field
+                ]
+            )
             )
     
     ft.app(target=main, view=ft.AppView.FLET_APP)
